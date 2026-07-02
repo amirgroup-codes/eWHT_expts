@@ -1,0 +1,26 @@
+# Ignore data folder
+/data/
+/regularizer/
+
+# Common ignores
+.DS_Store
+Thumbs.db
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.vscode/
+.idea/
+*.log
+coverage/
+dist/
+build/
+
+# Ignore CSVs, pdfs, and other large files
+*.csv
+*.pdf
+*.png
+*.npy
+*.txt
