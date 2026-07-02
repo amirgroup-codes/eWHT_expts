@@ -1,6 +1,13 @@
-# Ignore data folder
-/data/
-/regularizer/
+# Ignore data folder, except probability-processing scripts
+/data/*
+!/data/ps/
+/data/ps/*
+!/data/ps/esm/
+/data/ps/esm/*
+!/data/ps/esm/process_ps.py
+!/data/ps/msa/
+/data/ps/msa/*
+!/data/ps/msa/process_ps.py
 
 # Common ignores
 .DS_Store
