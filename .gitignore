@@ -1,4 +1,4 @@
-# Ignore data folder, except probability-processing scripts
+# Ignore data folder, except probability-processing scripts and datasets
 /data/*
 !/data/ps/
 /data/ps/*
@@ -8,6 +8,13 @@
 !/data/ps/msa/
 /data/ps/msa/*
 !/data/ps/msa/process_ps.py
+!/data/fasta/
+!/data/processed_msa/
+/data/processed_msa/*
+!/data/processed_msa/process_msa.py
+!/data/processed_data/
+/data/processed_data/*
+!/data/processed_data/process_data.py
 
 # Common ignores
 .DS_Store
@@ -25,9 +32,8 @@ coverage/
 dist/
 build/
 
-# Ignore CSVs, pdfs, and other large files
-*.csv
-*.pdf
+# Ignore files
 *.png
 *.npy
 *.txt
+*dev*

@@ -1,16 +1,16 @@
 from __future__ import annotations
 import re
 import sys
-from itertools import product
+from itertools import combinations, product
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-from matplotlib.colors import SymLogNorm, TwoSlopeNorm
 import logomaker
 from sklearn.preprocessing import OneHotEncoder
 import matplotlib.ticker as mticker
+from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 
 try:
     import umap
@@ -27,9 +27,16 @@ FIGURE_HEIGHT_PTS = 105
 LINE_WIDTH = 0.5
 COLOR_WT = "#088408"  # Green
 COLOR_MUT = "#faa808"  # Orange
-
-sys.path.append(str(ROOT))
-from pwht.cs import walsh_hadamard_from_seqs, p_walsh_hadamard_from_seqs
+COLOR_EWHT_BLUE = "#2c6fbb"
+GRAM_CMAP_POS = LinearSegmentedColormap.from_list(
+    "gram_positive",
+    [(0.0, "#ffffff"), (1.0, COLOR_WT)],
+)
+GRAM_CMAP_DIV = LinearSegmentedColormap.from_list(
+    "gram_diverging",
+    [(0.0, COLOR_EWHT_BLUE), (0.5, "#ffffff"), (1.0, COLOR_WT)],
+)
+GRAM_NORM_DIV = TwoSlopeNorm(vmin=-1.0, vcenter=0.0, vmax=1.0)
 
 font_path = ROOT / 'Helvetica.ttf'
 try:
@@ -433,7 +440,7 @@ def compute_msa_umap_embeddings(
     if not filtered_rows:
         return None
     
-    # 3. NC Expansion (Same as before)
+    # 3. NC Expansion
     expanded_rows = []
     nc_indices = [idx for idx, pos in enumerate(positions) if pos == "NC"]
     for row in filtered_rows:
@@ -493,27 +500,101 @@ def load_dataset(csv_path: Path) -> tuple[np.ndarray, np.ndarray]:
     return seqs, ps
 
 
-def _heatmap_ticks(size: int) -> tuple[list[int], list[str]]:
-    if size >= 128:
-        return [0, 63, 127], ['1', '64', '128']
+def _order2_interaction_sets(L: int) -> list[tuple[int, ...]]:
+    sets: list[tuple[int, ...]] = [()]
+    sets += [(i,) for i in range(L)]
+    sets += list(combinations(range(L), 2))
+    return sets
 
-    ticks = [0]
-    labels = ['1']
-    if size <= 32:
-        for pos in [16, 32]:
-            if pos <= size:
-                ticks.append(pos - 1)
-                labels.append(str(pos))
-        return ticks, labels
 
-    exponent = int(np.floor(np.log2(size)))
-    exponents = [exponent - 1, exponent]
-    for exp in exponents:
-        value = 2**exp
-        if value <= size:
-            ticks.append(value - 1)
-            labels.append(f'$2^{{{exp}}}$')
-    return ticks, labels
+def build_order2_gram_matrices(ps: np.ndarray) -> tuple[np.ndarray, np.ndarray, list[int]]:
+    """
+    Gram matrices for interactions up to 2nd order under the evolutionary measure D_p.
+    eWHT basis is orthonormal (identity); WHT parity basis has off-diagonal coupling.
+    """
+    p = np.asarray(ps, dtype=float)
+    mu = 1.0 - 2.0 * p
+    sets = _order2_interaction_sets(len(p))
+    n = len(sets)
+
+    g_ewht = np.eye(n)
+    g_wht = np.zeros((n, n))
+    for i in range(n):
+        for j in range(n):
+            diff = set(sets[i]) ^ set(sets[j])
+            g_wht[i, j] = float(np.prod([mu[k] for k in diff])) if diff else 1.0
+
+    bounds = [0]
+    for order in (0, 1, 2):
+        bounds.append(bounds[-1] + sum(1 for s in sets if len(s) == order))
+    return g_ewht, g_wht, bounds
+
+
+def _order_tick_starts(bounds: list[int]) -> list[int]:
+    """Tick positions at the start of 1st- and 2nd-order blocks (order 0 unlabeled)."""
+    return [bounds[1], bounds[2]]
+
+
+def draw_gram_heatmap(
+    fig: plt.Figure,
+    ax: plt.Axes,
+    matrix: np.ndarray,
+    label: str,
+    bounds: list[int],
+    *,
+    diverging: bool,
+    cbar_pad: float,
+    cbar_width: float,
+    y_label_x_pos: float,
+) -> None:
+    if diverging:
+        im = ax.imshow(
+            matrix,
+            aspect='auto',
+            cmap=GRAM_CMAP_DIV,
+            norm=GRAM_NORM_DIV,
+            interpolation='nearest',
+        )
+        cbar_ticks = [-1.0, 1.0]
+        cbar_labels = ['-1', '1']
+    else:
+        im = ax.imshow(
+            matrix,
+            aspect='auto',
+            cmap=GRAM_CMAP_POS,
+            vmin=0.0,
+            vmax=1.0,
+            interpolation='nearest',
+        )
+        cbar_ticks = [0.0, 1.0]
+        cbar_labels = ['0', '1']
+
+    starts = _order_tick_starts(bounds)
+    ax.set_xticks(starts)
+    ax.set_xticklabels(['1', '2'], fontfamily=font_name, fontsize=font_size)
+    ax.set_yticks(starts)
+    ax.set_yticklabels(['1', '2'], fontfamily=font_name, fontsize=font_size)
+    ax.set_xlabel(f'{label} epistasis order', fontsize=font_size, fontfamily=font_name, labelpad=2)
+    ax.set_ylabel(f'{label} epistasis order', fontsize=font_size, fontfamily=font_name, labelpad=2)
+    ax.yaxis.set_label_coords(y_label_x_pos, 0.5)
+    ax.tick_params(axis='both', width=LINE_WIDTH, labelsize=font_size)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    ax_pos = ax.get_position()
+    cbar_ax = fig.add_axes([ax_pos.x1 + cbar_pad, ax_pos.y0, cbar_width, ax_pos.height])
+    cb = fig.colorbar(im, cax=cbar_ax, ticks=cbar_ticks)
+    cb.ax.yaxis.set_major_locator(mticker.FixedLocator(cbar_ticks))
+    cb.ax.set_yticklabels(cbar_labels, fontsize=font_size)
+    cb.ax.yaxis.set_minor_locator(mticker.NullLocator())
+
+
+def _set_transparent_background(fig: plt.Figure) -> None:
+    fig.patch.set_facecolor('none')
+    fig.patch.set_alpha(0.0)
+    for ax in fig.get_axes():
+        ax.patch.set_facecolor('none')
+        ax.patch.set_alpha(0.0)
 
 
 def plot_dataset(csv_path: Path) -> Path | None:
@@ -532,12 +613,11 @@ def plot_dataset(csv_path: Path) -> Path | None:
     csv_path_for_inference = _resolve_processed_csv_path(dataset_key)
     pos_data, wt_aas, mut_aas, _ = _infer_wt_mut_from_processed_data(csv_path_for_inference, sequences, positions)
 
-    seqs, ps = load_dataset(csv_path)
-    wht_matrix = walsh_hadamard_from_seqs(seqs, normalize=False)
-    pwht_matrix = p_walsh_hadamard_from_seqs(seqs, ps, norm="expectation")
+    _, ps = load_dataset(csv_path)
+    g_ewht_evo, g_wht_evo, gram_bounds = build_order2_gram_matrices(ps)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    fig = plt.figure(figsize=(FIGURE_WIDTH_PTS / 72, FIGURE_HEIGHT_PTS / 72))
+    fig = plt.figure(figsize=(FIGURE_WIDTH_PTS / 72, FIGURE_HEIGHT_PTS / 72), facecolor='none')
     # Layout Constants
     left = 0.05
     bottom = 0.18
@@ -553,15 +633,15 @@ def plot_dataset(csv_path: Path) -> Path | None:
     x0 = left                                     # Logo
     x1 = x0 + main_width + pad_small              # UMAP
     x2 = x1 + main_width + pad_small              # PS (p-values)
-    x3 = x2 + main_width + pad_small              # WHT Matrix
-    x4 = x3 + main_width + pad_large              # p-WHT Matrix
+    x3 = x2 + main_width + pad_small              # WHT Gram matrix
+    x4 = x3 + main_width + pad_large              # eWHT Gram matrix
 
     logo_ax = fig.add_axes([x0, bottom, main_width, main_height])
     umap_ax = fig.add_axes([x1, bottom, main_width, main_height])
     ps_ax   = fig.add_axes([x2, bottom, main_width, main_height])
     wht_ax  = fig.add_axes([x3, bottom, main_width, main_height])
-    pwht_ax = fig.add_axes([x4, bottom, main_width, main_height])
-    for ax in [logo_ax, umap_ax, ps_ax, wht_ax, pwht_ax]:
+    ewht_ax = fig.add_axes([x4, bottom, main_width, main_height])
+    for ax in [logo_ax, umap_ax, ps_ax, wht_ax, ewht_ax]:
         ax.tick_params(axis='x', pad=1, labelsize=font_size)
         ax.tick_params(axis='y', pad=1, labelsize=font_size)
 
@@ -621,60 +701,27 @@ def plot_dataset(csv_path: Path) -> Path | None:
     CBAR_PAD = 0.005
     CBAR_WIDTH = 0.005
 
-    for ax, matrix, title in [(wht_ax, wht_matrix, 'WHT'), (pwht_ax, pwht_matrix, 'eWHT')]:
-        max_rows = min(matrix.shape[0], 128)
-        max_cols = min(matrix.shape[1], 128)
-        matrix = matrix[:max_rows, :max_cols]
-        mat_max_abs = float(np.max(np.abs(matrix))) if matrix.size else 0.0
-        
-        # 1. Determine integer limits and formatting
-        if title == 'eWHT' and mat_max_abs >= 100:
-            # Round up to the nearest power of 10 for scientific notation
-            exponent = int(np.ceil(np.log10(mat_max_abs)))
-            vlimit = 10**exponent
-            labels = [f'$-10^{{{exponent}}}$', f'$10^{{{exponent}}}$']
-            linthresh = max(vlimit * 1e-4, 1e-8)
-            norm = SymLogNorm(linthresh=linthresh, vmin=-vlimit, vmax=vlimit, base=10)
-        else:
-            # Round up to the nearest integer to ensure ticks are whole numbers
-            vlimit = int(np.ceil(mat_max_abs))
-            if vlimit < 1: vlimit = 1  # Default minimum scale
-            labels = [f'-{vlimit}', f'{vlimit}']
-            
-            if title == 'eWHT':
-                linthresh = max(vlimit * 1e-4, 1e-8)
-                norm = SymLogNorm(linthresh=linthresh, vmin=-vlimit, vmax=vlimit, base=10)
-            else:
-                norm = TwoSlopeNorm(vmin=-vlimit, vcenter=0.0, vmax=vlimit)
-        
-        # 2. Draw heatmap
-        im = ax.imshow(matrix, aspect='auto', cmap='gray', norm=norm, interpolation='nearest')
-        
-        # 3. Force strictly two integer ticks
-        ax_pos = ax.get_position()
-        cbar_ax = fig.add_axes([ax_pos.x1 + CBAR_PAD, ax_pos.y0, CBAR_WIDTH, ax_pos.height])
-        cb = fig.colorbar(im, cax=cbar_ax, ticks=[-vlimit, vlimit])
-        cb.ax.yaxis.set_major_locator(mticker.FixedLocator([-vlimit, vlimit]))
-        cb.ax.set_yticklabels(labels, fontsize=font_size)
-        cb.ax.yaxis.set_minor_locator(mticker.NullLocator())
+    wht_diverging = bool(np.any(g_wht_evo < 0))
 
-        # 4. Final axis labels
-        ax.set_xlabel(f'{title} epistatic interaction', fontsize=font_size, fontfamily=font_name, labelpad=2)
-        ax.set_ylabel('Sequence', fontsize=font_size, fontfamily=font_name, labelpad=2)
-        ax.yaxis.set_label_coords(Y_LABEL_X_POS, 0.5)
-        
-        xticks, xlabels = _heatmap_ticks(matrix.shape[1])
-        yticks, ylabels = _heatmap_ticks(matrix.shape[0])
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(xlabels, fontsize=font_size, fontfamily=font_name)
-        ax.set_yticks(yticks)
-        ax.set_yticklabels(ylabels, fontsize=font_size, fontfamily=font_name)
-        ax.tick_params(axis='both', width=LINE_WIDTH, labelsize=font_size)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+    for ax, matrix, label, diverging in [
+        (wht_ax, g_wht_evo, 'WHT', wht_diverging),
+        (ewht_ax, g_ewht_evo, 'eWHT', False),
+    ]:
+        draw_gram_heatmap(
+            fig,
+            ax,
+            matrix,
+            label,
+            gram_bounds,
+            diverging=diverging,
+            cbar_pad=CBAR_PAD,
+            cbar_width=CBAR_WIDTH,
+            y_label_x_pos=Y_LABEL_X_POS,
+        )
 
     out_path = OUTPUT_DIR / f'{csv_path.stem}_distribution.pdf'
-    fig.savefig(out_path, dpi=300)
+    _set_transparent_background(fig)
+    fig.savefig(out_path, dpi=300, transparent=True)
     plt.close(fig)
     return out_path
 
@@ -684,8 +731,6 @@ def main() -> None:
         raise FileNotFoundError(f"Processed data directory not found: {PROCESSED_DIR}")
 
     csv_paths = sorted([p for p in PROCESSED_DIR.glob('*.csv') if p.name != 'test.csv'], key=lambda p: p.name)
-    # Only do cov_rbd
-    # csv_paths = [p for p in csv_paths if p.name in ["cov2.csv"]]
     if not csv_paths:
         print('No CSV datasets found in', PROCESSED_DIR)
         return

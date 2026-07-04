@@ -219,11 +219,11 @@ def run_lasso_expt(
         )
 
         n_preds = {}
-        # FIXED: Unpack all 5 variables returned by the worker function
+        # Unpack all 5 variables returned by the worker function
         for true_j, r2, rho, raw_coeffs, y_pred_raw in results:
             r2_arr[i, true_j] = r2
             spearman_arr[i, true_j] = rho
-            n_preds[true_j] = y_pred_raw  # Map using the true split index
+            n_preds[true_j] = y_pred_raw
             
             if scaling_factors is not None:
                 coeffs_out[i, true_j, :] = raw_coeffs / scaling_factors

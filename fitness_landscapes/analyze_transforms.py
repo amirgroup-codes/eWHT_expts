@@ -1,4 +1,5 @@
 from __future__ import annotations
+import argparse
 import sys
 from pathlib import Path
 import numpy as np
@@ -7,12 +8,14 @@ from tqdm import tqdm
 from sklearn.metrics import r2_score
 
 ROOT = Path(__file__).resolve().parents[1]
+FITNESS_DIR = Path(__file__).resolve().parent
 PROCESSED_DIR = ROOT / "data" / "processed_data"
 PROCESSED_MSA_DIR = ROOT / "data" / "processed_msa"
-PS_DIR = ROOT / "data" / "ps" / "esm"                           # Switch between "msa" and "esm"
-PLOT_DIR = Path(__file__).resolve().parent / "plots" / "msa"    # Switch between "msa" and "esm"
-DATA_DIR = Path(__file__).resolve().parent / "data" / "msa"     # Switch between "msa" and "esm"
-USE_ESM_PRIOR = "esm" in PS_DIR.parts
+DEFAULT_PRIOR = "msa"
+PS_DIR = ROOT / "data" / "ps" / DEFAULT_PRIOR
+PLOT_DIR = FITNESS_DIR / "plots" / DEFAULT_PRIOR
+DATA_DIR = FITNESS_DIR / "data" / DEFAULT_PRIOR
+USE_ESM_PRIOR = DEFAULT_PRIOR == "esm"
 
 sys.path.append(str(ROOT / "pwht"))
 from gen_utils import sampling_function_df
@@ -21,6 +24,16 @@ from plot_utils import interaction_order_array, generate_and_render_r2_plots
 from plot_distribution import PROTEIN_METADATA, _read_a2m, _infer_wt_mut_from_processed_data, dataset_key_from_csv
 
 SEEDS = 5
+
+
+def configure_prior(prior: str) -> None:
+    global PS_DIR, PLOT_DIR, DATA_DIR, USE_ESM_PRIOR
+    if prior not in {"msa", "esm"}:
+        raise ValueError(f"prior must be one of 'msa' or 'esm', got {prior!r}")
+    PS_DIR = ROOT / "data" / "ps" / prior
+    PLOT_DIR = FITNESS_DIR / "plots" / prior
+    DATA_DIR = FITNESS_DIR / "data" / prior
+    USE_ESM_PRIOR = prior == "esm"
 
 def get_r2_cache_paths(csv_path: Path) -> tuple[Path, Path]:
     return (
@@ -35,7 +48,7 @@ def load_cached_r2_arrays(csv_path: Path) -> tuple[np.ndarray, np.ndarray] | Non
         try:
             return np.load(pwht_path), np.load(wht_path)
         except Exception as exc:
-            print(f"Warning: failed to load cached MSA R^2 arrays for {csv_path.name}: {exc}")
+            print(f"Warning: failed to load cached R^2 arrays for {csv_path.name}: {exc}")
     return None
 
 
@@ -219,7 +232,7 @@ def analyze_dataset(csv_path: Path) -> dict[str, object] | None:
     cached_r2 = load_cached_r2_arrays(csv_path)
     if cached_r2 is not None:
         r2_pwht_final, r2_wht_final = cached_r2
-        print(f"Loaded cached MSA R^2 arrays for {csv_path.name}")
+        print(f"Loaded cached R^2 arrays for {csv_path.name}")
         mean_pwht = np.mean(r2_pwht_final, axis=0)
         mean_wht = np.mean(r2_wht_final, axis=0)
         k_cross_pwht = next((i + 1 for i, v in enumerate(mean_pwht) if v >= 0.95), None)
@@ -314,10 +327,6 @@ def analyze_dataset(csv_path: Path) -> dict[str, object] | None:
                     targets_pwht = y_pwht[indices]
                     targets_wht = y_wht[indices]
 
-                    # FIXED MONOTONIC TRUNCATION:
-                    # Clean initialization to empty zeros across the full 2^L bounds.
-                    # Do NOT explicitly force index 0. Let the unweighted mean be handled naturally 
-                    # by the sorting index vector configuration parameters.
                     trunc_pwht = np.zeros_like(global_coeffs_pwht)
                     trunc_wht = np.zeros_like(global_coeffs_wht)
                     
@@ -401,9 +410,18 @@ def analyze_dataset(csv_path: Path) -> dict[str, object] | None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Analyze WHT and p-WHT landscape truncation.")
+    parser.add_argument(
+        "--prior",
+        choices=["msa", "esm"],
+        default=DEFAULT_PRIOR,
+        help=f"Evolutionary prior to use (default: {DEFAULT_PRIOR}).",
+    )
+    args = parser.parse_args()
+    configure_prior(args.prior)
+
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
     csv_paths = sorted(PROCESSED_DIR.glob("*.csv"))
-    # csv_paths = [p for p in csv_paths if p.name in ["cov2.csv"]]
 
     summaries = []
     for csv_path in csv_paths:

@@ -39,10 +39,9 @@ FIGURE_WIDTH_PTS = 480
 FIGURE_HEIGHT_PTS = 105
 MAGNITUDE_BAR_ORDERS = [1, 2, 3, 4, 5]
 POSITIONS = [339, 371, 373, 375, 417, 440, 446, 477, 478, 484, 493, 496, 498, 501, 505]
-# POSITIONS = [336, 368, 370, 372, 414, 437, 443, 474, 475, 481, 490, 493, 495, 498, 502]
 CIF_CHAIN_ID = "B"
-ANTIBODY_CHAIN_ID = "A"
-# Heavy-atom contact threshold for antigen–antibody interface proximity.
+TARGET_CHAIN_ID = "A"
+# Heavy-atom contact threshold for antigen–target interface proximity.
 INTERFACE_CONTACT_THRESHOLD_A = 4.0
 # Internal RBD Cα–Cα contact threshold used in printed spatial summaries.
 RBD_CONTACT_THRESHOLD_A = 8.0
@@ -179,40 +178,40 @@ def _residue_heavy_atom_coords(residue) -> np.ndarray:
     return np.asarray(coords)
 
 
-def get_site_antibody_distances(
+def get_site_target_distances(
     pdb_positions: list[int],
     cif_path: Path,
     antigen_chain_id: str = CIF_CHAIN_ID,
-    antibody_chain_id: str = ANTIBODY_CHAIN_ID,
+    target_chain_id: str = TARGET_CHAIN_ID,
 ) -> np.ndarray:
-    """Minimum heavy-atom distance from each assayed site to chain D."""
+    """Minimum heavy-atom distance from each assayed site to the target chain."""
     parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure(cif_path.stem, str(cif_path))
     model = structure[0]
     antigen_chain = model[antigen_chain_id]
-    antibody_coords = _heavy_atom_coords(model[antibody_chain_id])
+    target_coords = _heavy_atom_coords(model[target_chain_id])
 
     distances = np.zeros(len(pdb_positions), dtype=float)
     for i, pos in enumerate(pdb_positions):
         residue = antigen_chain[pos]
         residue_coords = _residue_heavy_atom_coords(residue)
         distances[i] = float(
-            np.min(np.linalg.norm(residue_coords[:, None, :] - antibody_coords[None, :, :], axis=2))
+            np.min(np.linalg.norm(residue_coords[:, None, :] - target_coords[None, :, :], axis=2))
         )
     return distances
 
 
-def mean_site_antibody_distance_for_interaction(
+def mean_site_target_distance_for_interaction(
     site_indices: list[int],
-    site_antibody_distances: np.ndarray,
+    site_target_distances: np.ndarray,
 ) -> float:
-    return float(np.mean([site_antibody_distances[i] for i in site_indices]))
+    return float(np.mean([site_target_distances[i] for i in site_indices]))
 
 
-def collect_interaction_mean_site_antibody_distances_by_order(
+def collect_interaction_mean_site_target_distances_by_order(
     mask: np.ndarray,
     L: int,
-    site_antibody_distances: np.ndarray,
+    site_target_distances: np.ndarray,
     min_order: int = 1,
     max_order: int = 5,
 ) -> dict[int, list[float]]:
@@ -223,7 +222,7 @@ def collect_interaction_mean_site_antibody_distances_by_order(
             continue
         site_indices = interaction_site_indices(idx, L)
         distances[order].append(
-            mean_site_antibody_distance_for_interaction(site_indices, site_antibody_distances)
+            mean_site_target_distance_for_interaction(site_indices, site_target_distances)
         )
     return distances
 
@@ -231,13 +230,13 @@ def collect_interaction_mean_site_antibody_distances_by_order(
 def interface_contact_percentage_by_order(
     mask: np.ndarray,
     L: int,
-    site_antibody_distances: np.ndarray,
+    site_target_distances: np.ndarray,
     threshold_a: float,
     min_order: int = 1,
     max_order: int = 5,
 ) -> dict[int, float]:
-    interaction_means = collect_interaction_mean_site_antibody_distances_by_order(
-        mask, L, site_antibody_distances, min_order=min_order, max_order=max_order
+    interaction_means = collect_interaction_mean_site_target_distances_by_order(
+        mask, L, site_target_distances, min_order=min_order, max_order=max_order
     )
     percentages: dict[int, float] = {}
     for order, values in interaction_means.items():
@@ -248,14 +247,14 @@ def interface_contact_percentage_by_order(
     return percentages
 
 
-def print_site_antibody_distances(
+def print_site_target_distances(
     positions: list[int],
     pdb_positions: list[int],
     labels: list[str],
-    site_antibody_distances: np.ndarray,
+    site_target_distances: np.ndarray,
 ) -> None:
-    print("Per-site minimum heavy-atom distance to antibody chain D:")
-    for pos, pdb_pos, label, dist in zip(positions, pdb_positions, labels, site_antibody_distances):
+    print("Per-site minimum heavy-atom distance to target chain:")
+    for pos, pdb_pos, label, dist in zip(positions, pdb_positions, labels, site_target_distances):
         print(f"  {label} (position {pos}, PDB {pdb_pos}): {dist:.2f} Å")
 
 
@@ -353,7 +352,6 @@ def decode_interaction(idx: int, labels: list[str]) -> list[str]:
 
 
 def prepare_centered_y(df: pd.DataFrame, L: int, mode: str = 'WHT', ps: np.ndarray = None) -> np.ndarray:
-    # Force a strict deep-copy initialization to isolate baseline memory frames entirely
     y = sampling_function_df(df, L).copy()
     if np.isnan(y).any():
         fill_value = float(np.nanmean(y)) if not np.all(np.isnan(y)) else 0.0
@@ -432,7 +430,7 @@ def print_closest_third_order_interactions_to_interface(
     mask: np.ndarray,
     coeffs: np.ndarray,
     labels: list[str],
-    site_antibody_distances: np.ndarray,
+    site_target_distances: np.ndarray,
     L: int,
     n: int = 3,
 ) -> None:
@@ -440,11 +438,11 @@ def print_closest_third_order_interactions_to_interface(
     ranked: list[tuple[float, list[str], float]] = []
     for idx in third_idxs:
         site_indices = interaction_site_indices(idx, L)
-        dist = mean_site_antibody_distance_for_interaction(site_indices, site_antibody_distances)
+        dist = mean_site_target_distance_for_interaction(site_indices, site_target_distances)
         interaction = decode_interaction(idx, labels)
         ranked.append((dist, interaction, float(np.abs(coeffs[idx]))))
     ranked.sort(key=lambda item: item[0])
-    print(f"{name} top {n} 3rd-order interactions closest to antibody interface:")
+    print(f"{name} top {n} 3rd-order interactions closest to target interface:")
     if not ranked:
         print("  n/a")
         return
@@ -678,23 +676,23 @@ def main():
             f"POSITIONS length ({len(POSITIONS)}) must match POSITIONS length ({L})."
         )
     dist_matrix = get_ca_distance_matrix(POSITIONS, CIF_PATH)
-    site_antibody_distances = get_site_antibody_distances(POSITIONS, CIF_PATH)
-    print_site_antibody_distances(POSITIONS, POSITIONS, labels, site_antibody_distances)
+    site_target_distances = get_site_target_distances(POSITIONS, CIF_PATH)
+    print_site_target_distances(POSITIONS, POSITIONS, labels, site_target_distances)
     print_closest_third_order_interactions_to_interface(
-        'WHT', mask_wht, c_wht_norm, labels, site_antibody_distances, L, n=3
+        'WHT', mask_wht, c_wht_norm, labels, site_target_distances, L, n=3
     )
     print_closest_third_order_interactions_to_interface(
-        'p-WHT', mask_pwht, c_pwht_norm, labels, site_antibody_distances, L, n=3
+        'p-WHT', mask_pwht, c_pwht_norm, labels, site_target_distances, L, n=3
     )
 
     distances_wht = collect_interaction_distances_by_order(mask_wht, L, dist_matrix)
     distances_pwht = collect_interaction_distances_by_order(mask_pwht, L, dist_matrix)
     interface_orders = [1, 2, 3, 4, 5]
     interface_contact_wht = interface_contact_percentage_by_order(
-        mask_wht, L, site_antibody_distances, INTERFACE_CONTACT_THRESHOLD_A
+        mask_wht, L, site_target_distances, INTERFACE_CONTACT_THRESHOLD_A
     )
     interface_contact_pwht = interface_contact_percentage_by_order(
-        mask_pwht, L, site_antibody_distances, INTERFACE_CONTACT_THRESHOLD_A
+        mask_pwht, L, site_target_distances, INTERFACE_CONTACT_THRESHOLD_A
     )
 
     contact_wht = contact_fraction_by_order(mask_wht, L, dist_matrix, RBD_CONTACT_THRESHOLD_A)
@@ -740,7 +738,6 @@ def main():
     cbar.set_ticks([-abs_max_pair, 0.0, abs_max_pair])
     cbar.set_ticklabels([f"{-abs_max_pair:.1f}", "0.0", f"{abs_max_pair:.1f}"])
     cbar.set_label('Interaction', rotation=270, labelpad=10)
-    # draw_mismatch_boxes(ax_pair, mask_wht, mask_pwht, len(POSITIONS))
     size = len(POSITIONS)
     ax_pair.plot(
         [0, size],

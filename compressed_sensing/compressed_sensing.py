@@ -9,7 +9,7 @@ from sklearn.metrics import r2_score
 
 # Define paths
 ROOT = Path(__file__).resolve().parents[1]
-PROCESSED_DIR = ROOT / "fitness_landscapes" / "data" / "esm" # Switch between "msa" and "esm"
+FITNESS_DATA_DIR = ROOT / "fitness_landscapes" / "data"
 PS_BASE_DIR = ROOT / "data" / "ps"
 LASSO_BASE_DIR = Path(__file__).resolve().parent / "cs"
 sys.path.append(str(ROOT / "pwht"))
@@ -26,8 +26,12 @@ def resolve_ps_path(dataset_key: str, method: str) -> Path | None:
     return None
 
 
+def resolve_processed_dir(method: str) -> Path:
+    return FITNESS_DATA_DIR / method
+
+
 def load_msa_seed_mapping(dataset_name: str, method: str):
-    msa_csv = ROOT / "fitness_landscapes" / "data" / method / f"{dataset_name}.csv"
+    msa_csv = resolve_processed_dir(method) / f"{dataset_name}.csv"
     if not msa_csv.exists():
         return None
     msa_df = pd.read_csv(msa_csv, dtype={"genotype": str, "seed": str, "estimated_fitness": float})
@@ -82,7 +86,7 @@ def run_landscape_batch(csv_path: Path, method: str, method_dir: Path, args):
     ps_path = resolve_ps_path(dataset_key, method)
     
     if ps_path is None:
-        print(f"Skipping {dataset_name}: No ps file for method '{method}")
+        print(f"Skipping {dataset_name}: No ps file for method '{method}'")
         return None
 
     data = load_ground_truth_landscape(csv_path)
@@ -117,8 +121,6 @@ def run_landscape_batch(csv_path: Path, method: str, method_dir: Path, args):
         ns_full = list(range(10, 101, 10))
     elif csv_path.name in ["cr6261_h1_mean.csv", "cr6261_h9_mean.csv", "his3.csv"]:
         ns_full = list(range(10, 201, 10))
-    elif csv_path.name == "cr9114_h3_mean.csv":
-        ns_full = [3000, 3500]
     elif csv_path.name == "cov_rbd.csv":
         ns_full = list(range(10, 201, 10))
     else:
@@ -221,11 +223,9 @@ def run_landscape_batch(csv_path: Path, method: str, method_dir: Path, args):
                 if coeffs is not None:
                     coeffs_for_n = coeffs[0]  
                     for rep_idx, coef in enumerate(coeffs_for_n):
-                        # Save coefficients safely
+                        # Save coefficients
                         coeff_path = coeffs_dirs[b_type] / f"n{n}_bootstrap{bootstrap_seed}_rep{rep_idx}.npy"
                         np.save(coeff_path, coef)
-
-                        # FIXED: Map raw predictions and ground-truth using the verified split index
                         ys_preds[rep_idx][b_type] = preds_dict_for_n[rep_idx]
                         ys_preds[rep_idx]['y_val'] = y_raw[val_splits[rep_idx]]
 
@@ -292,29 +292,38 @@ def save_outputs(dataset_name, method, method_dir, results):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--reps', type=int, default=10, help='Number of reps for the final score at each n')
-    parser.add_argument('--methods', type=str, nargs='+', default=["esm"])
+    parser.add_argument(
+        '--method',
+        choices=['msa', 'esm'],
+        default='esm',
+        help='Prior method to run. Reads fitness_landscapes/data/<method>.',
+    )
     args = parser.parse_args()
 
-    METHODS = args.methods
+    method = args.method
+    processed_dir = resolve_processed_dir(method)
+    if not processed_dir.exists():
+        raise FileNotFoundError(f"Missing processed data directory: {processed_dir}")
 
-    csv_paths = sorted(p for p in PROCESSED_DIR.glob("*.csv"))
+    csv_paths = sorted(p for p in processed_dir.glob("*.csv"))
+    if not csv_paths:
+        raise FileNotFoundError(f"No CSV files found in processed data directory: {processed_dir}")
     
-    for method in METHODS:
-        print(f"\n{'='*60}")
-        print(f"RUNNING METHOD: {method}")
-        print('='*60)
+    print(f"\n{'='*60}")
+    print(f"RUNNING METHOD: {method}")
+    print(f"INPUT DIR: {processed_dir}")
+    print('='*60)
 
-        method_dir = LASSO_BASE_DIR / method
-        method_dir.mkdir(parents=True, exist_ok=True)
-        for path in csv_paths:
+    method_dir = LASSO_BASE_DIR / method
+    method_dir.mkdir(parents=True, exist_ok=True)
+    for path in csv_paths:
+        dataset_name = path.stem
+        dataset_csv = method_dir / f"{dataset_name}.csv"
+        if dataset_csv.exists():
+            print(f" - Skipping {dataset_name}: Results already exist at {dataset_csv}")
+            continue
 
-            dataset_name = path.stem
-            dataset_csv = method_dir / f"{dataset_name}.csv"
-            if dataset_csv.exists():
-                print(f" - Skipping {dataset_name}: Results already exist at {dataset_csv}")
-                continue
-
-            run_landscape_batch(path, method, method_dir, args)
+        run_landscape_batch(path, method, method_dir, args)
 
 if __name__ == "__main__":
     main()

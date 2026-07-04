@@ -25,7 +25,7 @@ from viz_cov_rbd import (
     decode_interaction,
     get_2nd_order_matrix,
     get_ca_distance_matrix,
-    get_site_antibody_distances,
+    get_site_target_distances,
     interface_contact_percentage_by_order,
     normalize_empirical_squared_magnitudes,
     pooled_contact_fraction,
@@ -33,7 +33,7 @@ from viz_cov_rbd import (
     print_interface_contact_stats,
     print_closest_third_order_interactions_to_interface,
     print_pairwise_and_higher_order_stats,
-    print_site_antibody_distances,
+    print_site_target_distances,
     print_spatial_proximity_stats,
     sum_top_k_magnitudes_by_order,
 )
@@ -48,8 +48,8 @@ OUTPUT_PATH = ROOT / "visualization" / "cr6261_h1_mean.pdf"
 POSITIONS = [28, 30, 58, 59, 62, 74, 75, 76, 77, 79, 104]
 PDB_POSITIONS = [28, 30, 57, 58, 61, 73, 74, 75, 76, 78, 100]
 CIF_CHAIN_ID = "H"
-ANTIBODY_CHAIN_ID = "B"
-# Heavy-atom contact threshold for antigen–antibody interface proximity.
+TARGET_CHAIN_ID = "B"
+# Heavy-atom contact threshold for antigen–target interface proximity.
 INTERFACE_CONTACT_THRESHOLD_A = 4.0
 # Internal Cα–Cα contact threshold used in printed spatial summaries.
 RBD_CONTACT_THRESHOLD_A = 8.0
@@ -132,28 +132,28 @@ def main():
             f"POSITIONS length ({len(POSITIONS)}) must match POSITIONS length ({L})."
         )
     dist_matrix = get_ca_distance_matrix(POSITIONS, CIF_PATH, chain_id=CIF_CHAIN_ID)
-    site_antibody_distances = get_site_antibody_distances(
+    site_target_distances = get_site_target_distances(
         POSITIONS,
         CIF_PATH,
         antigen_chain_id=CIF_CHAIN_ID,
-        antibody_chain_id=ANTIBODY_CHAIN_ID,
+        target_chain_id=TARGET_CHAIN_ID,
     )
-    print_site_antibody_distances(POSITIONS, POSITIONS, labels, site_antibody_distances)
+    print_site_target_distances(POSITIONS, POSITIONS, labels, site_target_distances)
     print_closest_third_order_interactions_to_interface(
-        'WHT', mask_wht, c_wht_norm, labels, site_antibody_distances, L, n=3
+        'WHT', mask_wht, c_wht_norm, labels, site_target_distances, L, n=3
     )
     print_closest_third_order_interactions_to_interface(
-        'p-WHT', mask_pwht, c_pwht_norm, labels, site_antibody_distances, L, n=3
+        'p-WHT', mask_pwht, c_pwht_norm, labels, site_target_distances, L, n=3
     )
 
     distances_wht = collect_interaction_distances_by_order(mask_wht, L, dist_matrix)
     distances_pwht = collect_interaction_distances_by_order(mask_pwht, L, dist_matrix)
     interface_orders = [1, 2, 3, 4, 5]
     interface_contact_wht = interface_contact_percentage_by_order(
-        mask_wht, L, site_antibody_distances, INTERFACE_CONTACT_THRESHOLD_A
+        mask_wht, L, site_target_distances, INTERFACE_CONTACT_THRESHOLD_A
     )
     interface_contact_pwht = interface_contact_percentage_by_order(
-        mask_pwht, L, site_antibody_distances, INTERFACE_CONTACT_THRESHOLD_A
+        mask_pwht, L, site_target_distances, INTERFACE_CONTACT_THRESHOLD_A
     )
 
     contact_wht = contact_fraction_by_order(mask_wht, L, dist_matrix, RBD_CONTACT_THRESHOLD_A)
@@ -199,7 +199,6 @@ def main():
     cbar.set_ticks([-abs_max_pair, 0.0, abs_max_pair])
     cbar.set_ticklabels([f"{-abs_max_pair:.1f}", "0.0", f"{abs_max_pair:.1f}"])
     cbar.set_label('Interaction', rotation=270, labelpad=10)
-    # draw_mismatch_boxes(ax_pair, mask_wht, mask_pwht, len(POSITIONS))
     size = len(POSITIONS)
     ax_pair.plot(
         [0, size],

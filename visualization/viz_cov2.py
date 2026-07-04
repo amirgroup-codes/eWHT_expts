@@ -173,7 +173,6 @@ def main():
     cbar.set_ticks([-abs_max_pair, 0.0, abs_max_pair])
     cbar.set_ticklabels([f"{-abs_max_pair:.1f}", "0.0", f"{abs_max_pair:.1f}"])
     cbar.set_label('Interaction', rotation=270, labelpad=10)
-    # draw_mismatch_boxes(ax_pair, mask_wht, mask_pwht, len(POSITIONS))
     size = len(POSITIONS)
     ax_pair.plot(
         [0, size],

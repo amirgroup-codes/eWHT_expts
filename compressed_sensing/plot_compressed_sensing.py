@@ -18,8 +18,8 @@ COLOR_PWHT = "#1f77b4"
 COLOR_WHT = "#d62728"
 
 ROOT = REPO_ROOT / "compressed_sensing"
-CS_MSA_DIR = ROOT / "cs" / "msa"
-YS_DIR = CS_MSA_DIR / "ys"
+CS_BASE_DIR = ROOT / "cs"
+YS_DIR = CS_BASE_DIR / "msa" / "ys"
 
 font_path = ROOT / 'Helvetica.ttf'
 try:
@@ -170,15 +170,25 @@ def plot_dataset(csv_path: Path, output_dir: Path) -> Path:
 
 
 def main() -> None:
+    global YS_DIR
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-dir", type=Path, default=CS_MSA_DIR / "plots")
-    parser.add_argument("--csv-dir", type=Path, default=CS_MSA_DIR)
+    parser.add_argument(
+        "--method",
+        choices=["msa", "esm"],
+        default="msa",
+        help="Prior method to plot. Reads compressed_sensing/cs/<method>.",
+    )
     args = parser.parse_args()
 
-    csv_paths = sorted([p for p in args.csv_dir.glob("*.csv") if p.name != "test.csv"])
+    method_dir = CS_BASE_DIR / args.method
+    YS_DIR = method_dir / "ys"
+    csv_dir = method_dir
+    output_dir = method_dir / "plots"
+
+    csv_paths = sorted([p for p in csv_dir.glob("*.csv") if p.name != "test.csv"])
     for csv_path in csv_paths:
         try:
-            plot_dataset(csv_path, args.output_dir)
+            plot_dataset(csv_path, output_dir)
         except Exception as exc:
             print(f"Skipped {csv_path.name}: {exc}")
 

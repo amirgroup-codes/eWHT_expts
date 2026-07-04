@@ -38,12 +38,6 @@ def ipfwht(a, ps):
         h *= 2
     return a
 
-# def ipfwht(y: np.ndarray, ps: np.ndarray | None = None, norm: str | None = "expectation") -> np.ndarray:
-# 	"""Inverse p-biased WHT (add_bias=False)."""
-# 	raise NotImplementedError("ipfwht is not currently implemented; use np.linalg.solve with the p-bias matrix for exact inversion.")
-# 	return compute_pfwht(y, ps=ps, add_bias=False, norm=norm)
-
-
 def _norm_multiplier(N: int, norm: str | None) -> float:
     if norm in ["expectation", "stable"]:
         return 1.0
