@@ -297,7 +297,7 @@ def process_cr9114() -> None:
     """
     Process raw CR9114 data into standardized columns.
 
-    Different fitness functions: h1_mean, h3_mean
+    Different fitness functions: h1_mean
     Input:  data/raw_data/cr9114_raw_data.csv
     Output: data/processed_data/cr9114_{fitness_function}.csv
 
@@ -342,14 +342,13 @@ def process_cr9114() -> None:
         lambda seq: "".join(seq[pos - 1] for pos in POSITIONS)
     )
 
-    for fitness_column in ["h1_mean", "h3_mean"]:
-        df_temp = df[["mutant", "mutated_sequence", "genotype", "genotype_sequence"]].copy()
-        df_temp["fitness"] = pd.to_numeric(df[fitness_column], errors="coerce")
-        df_temp["estimated_fitness"] = 0
-        # Fill NaN fitness values from combinatorial subsets of mutations
-        df_temp = fill_nan_from_subset_of_mutations(df_temp, "fitness", "cr9114")
-        output_path = CURR_DIR / f"cr9114_{fitness_column}.csv"
-        df_temp.to_csv(output_path, index=False)
+    df_temp = df[["mutant", "mutated_sequence", "genotype", "genotype_sequence"]].copy()
+    df_temp["fitness"] = pd.to_numeric(df["h1_mean"], errors="coerce")
+    df_temp["estimated_fitness"] = 0
+    # Fill NaN fitness values from combinatorial subsets of mutations
+    df_temp = fill_nan_from_subset_of_mutations(df_temp, "fitness", "cr9114")
+    output_path = CURR_DIR / f"cr9114_{"h1_mean"}.csv"
+    df_temp.to_csv(output_path, index=False)
 
 def process_cr6261() -> None:
     """
