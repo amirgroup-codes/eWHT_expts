@@ -1,0 +1,1 @@
+{"dataset": "cr6261_h1_mean", "setup": "coef_global", "seed": 2, "L": 11, "eval_n": 1024, "k95_ewht": 352, "k95_wht": 235, "ge3_ewht": 327, "ge3_wht": 227, "x_max": 470, "inputs_sha": "7f25eb70b0c2b0331d49737d2ac393b714ce659150a690a0aaa661bbb1c8d6b9", "code_version": 1}

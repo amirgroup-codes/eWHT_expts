@@ -1,0 +1,1 @@
+{"dataset": "his3", "setup": "coef_band", "seed": 0, "L": 11, "eval_n": 1024, "k95_ewht": 286, "k95_wht": 266, "ge3_ewht": 232, "ge3_wht": 216, "x_max": 382, "inputs_sha": "a824e1d7b2576b7afc1d7a0eee41df6e3c9bef653fe540104960568e54eae2f0", "code_version": 1}

@@ -1,0 +1,1 @@
+{"dataset": "cov_rbd", "setup": "yshuf", "seed": 0, "L": 15, "eval_n": 16384, "k95_ewht": 17097, "k95_wht": 18126, "ge3_ewht": 17030, "ge3_wht": 18070, "x_max": 24168, "inputs_sha": "e96959a898526282bb3ad358c8f69b4a85826381b97bd3b3a48cc808066dcc9f", "code_version": 2}

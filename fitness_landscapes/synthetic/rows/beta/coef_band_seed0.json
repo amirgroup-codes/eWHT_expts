@@ -1,0 +1,1 @@
+{"dataset": "beta", "setup": "coef_band", "seed": 0, "L": 5, "eval_n": 16, "k95_ewht": 10, "k95_wht": 15, "ge3_ewht": 2, "ge3_wht": 5, "x_max": 20, "inputs_sha": "41eb1301f121e52ee613eb209cd2167ff6977998cb80abc9a95a70e5a67e3c9a", "code_version": 1}

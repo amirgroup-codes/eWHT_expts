@@ -1,0 +1,1 @@
+{"dataset": "cov2", "setup": "coef_global", "seed": 2, "L": 10, "eval_n": 512, "k95_ewht": 46, "k95_wht": 17, "ge3_ewht": 35, "ge3_wht": 15, "x_max": 62, "inputs_sha": "e42b346b0cb052fe6ba3849fc081cc4a64428bffef3d970a06cceedcc68132cb", "code_version": 1}

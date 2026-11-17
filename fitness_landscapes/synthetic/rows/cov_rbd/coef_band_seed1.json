@@ -1,0 +1,1 @@
+{"dataset": "cov_rbd", "setup": "coef_band", "seed": 1, "L": 15, "eval_n": 16384, "k95_ewht": 35, "k95_wht": 32, "ge3_ewht": 7, "ge3_wht": 8, "x_max": 47, "inputs_sha": "e96959a898526282bb3ad358c8f69b4a85826381b97bd3b3a48cc808066dcc9f", "code_version": 1}

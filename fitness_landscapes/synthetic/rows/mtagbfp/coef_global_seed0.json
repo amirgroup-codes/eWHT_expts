@@ -1,0 +1,1 @@
+{"dataset": "mtagbfp", "setup": "coef_global", "seed": 0, "L": 13, "eval_n": 4096, "k95_ewht": 309, "k95_wht": 61, "ge3_ewht": 303, "ge3_wht": 59, "x_max": 412, "inputs_sha": "8c422bc2ae61a4d2144b2ef24187935061a7c77584efc81125b822d25c22052c", "code_version": 1}

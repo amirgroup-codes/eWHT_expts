@@ -347,7 +347,7 @@ def process_cr9114() -> None:
     df_temp["estimated_fitness"] = 0
     # Fill NaN fitness values from combinatorial subsets of mutations
     df_temp = fill_nan_from_subset_of_mutations(df_temp, "fitness", "cr9114")
-    output_path = CURR_DIR / f"cr9114_{"h1_mean"}.csv"
+    output_path = CURR_DIR / "cr9114_h1_mean.csv"
     df_temp.to_csv(output_path, index=False)
 
 def process_cr6261() -> None:
@@ -433,7 +433,7 @@ def process_cov_rbd() -> None:
     Paper: https://www.nature.com/articles/s41467-022-34506-z
     """
     # 1. Load Wildtype Sequence from FASTA
-    fasta_path = Path("../fasta/cov_rbd.fasta")
+    fasta_path = DATA_DIR / "fasta" / "cov_rbd.fasta"
     if not fasta_path.exists():
         raise FileNotFoundError(f"FASTA file not found at {fasta_path}")
     
@@ -447,8 +447,8 @@ def process_cov_rbd() -> None:
         493: "R", 496: "S", 498: "R", 501: "Y", 505: "H"
     }
 
-    input_path = Path("../raw_data/cov_rbd_raw_data.tsv")
-    output_path = Path("../processed_data/cov_rbd.csv")
+    input_path = DATA_DIR / "raw_data" / "cov_rbd_raw_data.tsv"
+    output_path = CURR_DIR / "cov_rbd.csv"
 
     # Read observed data
     df_raw = pd.read_csv(input_path, sep="\t")

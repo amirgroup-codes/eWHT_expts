@@ -1,0 +1,1 @@
+{"dataset": "mtagbfp", "setup": "yshuf", "seed": 2, "L": 13, "eval_n": 4096, "k95_ewht": 4188, "k95_wht": 4477, "ge3_ewht": 4141, "ge3_wht": 4428, "x_max": 5970, "inputs_sha": "8c422bc2ae61a4d2144b2ef24187935061a7c77584efc81125b822d25c22052c", "code_version": 2}

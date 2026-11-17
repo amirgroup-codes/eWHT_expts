@@ -1,0 +1,1 @@
+{"dataset": "his3", "setup": "yshuf", "seed": 1, "L": 11, "eval_n": 1024, "k95_ewht": 1066, "k95_wht": 1165, "ge3_ewht": 1024, "ge3_wht": 1124, "x_max": 1554, "inputs_sha": "a824e1d7b2576b7afc1d7a0eee41df6e3c9bef653fe540104960568e54eae2f0", "code_version": 2}

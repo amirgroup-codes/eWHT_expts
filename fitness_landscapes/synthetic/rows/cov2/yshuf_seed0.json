@@ -1,0 +1,1 @@
+{"dataset": "cov2", "setup": "yshuf", "seed": 0, "L": 10, "eval_n": 512, "k95_ewht": 519, "k95_wht": 571, "ge3_ewht": 483, "ge3_wht": 533, "x_max": 762, "inputs_sha": "e42b346b0cb052fe6ba3849fc081cc4a64428bffef3d970a06cceedcc68132cb", "code_version": 2}

@@ -1,0 +1,1 @@
+{"dataset": "beta", "setup": "yshuf", "seed": 2, "L": 5, "eval_n": 16, "k95_ewht": 15, "k95_wht": 21, "ge3_ewht": 7, "ge3_wht": 10, "x_max": 28, "inputs_sha": "41eb1301f121e52ee613eb209cd2167ff6977998cb80abc9a95a70e5a67e3c9a", "code_version": 2}

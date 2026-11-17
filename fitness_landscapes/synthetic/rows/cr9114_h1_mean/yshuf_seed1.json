@@ -1,0 +1,1 @@
+{"dataset": "cr9114_h1_mean", "setup": "yshuf", "seed": 1, "L": 16, "eval_n": 32768, "k95_ewht": 33979, "k95_wht": 36623, "ge3_ewht": 33889, "ge3_wht": 36539, "x_max": 48831, "inputs_sha": "3c878c1e9ef5f3be534bd464463590fbccb9f99ca5b097f39ee21629d425bfc8", "code_version": 2}
